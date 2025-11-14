@@ -81,6 +81,16 @@ pwsh ./Check-HIBPPassword.ps1 -InputFile ./passwords.txt |
 - Avoid storing sensitive passwords in plain text files. Prefer secure prompts or pipeline inputs that you immediately discard afterward.
 - When scripting bulk checks, consider splitting lists and respecting rate limits to avoid 429 responses.
 
+## HIBP API v3 specifics
+
+- **API versioning** – All v3 endpoints are versioned in the URL (e.g. `https://api.pwnedpasswords.com/range/{prefix}` or `https://haveibeenpwned.com/api/v3/...`). This script targets the v3 range endpoint for Pwned Passwords.
+- **Authentication** – The range API used here is free and does *not* require a `hibp-api-key`, but every other v3 endpoint (breaches, pastes, stealer logs, etc.) does. Keep that in mind if you extend the script.
+- **Mandatory User-Agent** – Every request must include a descriptive `User-Agent` header or HIBP will return HTTP 403. The script uses `HIBPPasswordChecker/1.0 (+https://haveibeenpwned.com/API/v3)` by default; customize it if you redistribute the tool.
+- **TLS requirements** – HIBP only allows TLS 1.2+ connections. The script ensures TLS 1.2 is enabled before sending requests.
+- **Response padding** – Setting the `Add-Padding: true` header pads responses to 800–1,000 rows regardless of real results, improving privacy per the official docs. Disable it only if you need the minimal payload size.
+- **Rate limiting** – Pwned Passwords has no published hard limit, but Troy Hunt recommends ~1.5 s between unique prefix lookups. If you do get `429 Too Many Requests`, back off as directed by the `Retry-After` header.
+- **Status codes** – Expect `200 OK` for success, `400` for malformed input, `403` for a missing/invalid user agent, `429` when throttled, and `503` if Cloudflare can’t reach the service.
+
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
