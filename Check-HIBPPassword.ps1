@@ -76,6 +76,7 @@ $prefixCache = @{}
 $collectedPasswords = [System.Collections.Generic.List[psobject]]::new()
 $results = [System.Collections.Generic.List[psobject]]::new()
 $sha1 = [System.Security.Cryptography.SHA1]::Create()
+$showProgress = $false
 
 function Add-Password {
     param(
@@ -331,25 +332,40 @@ try {
         }
 
         Get-Content -Path $InputFile | ForEach-Object { Add-Password -Candidate $_ }
+        $showProgress = $true
     }
 
     if ($BrowserExportFile) {
         foreach ($exportPath in $BrowserExportFile) {
             Import-BrowserExportPasswords -Path $exportPath
         }
+        $showProgress = $true
     }
 
     if ($collectedPasswords.Count -eq 0) {
         throw 'No passwords supplied. Provide -Password, pipeline input, -SecurePassword, -Prompt, -InputFile, or -BrowserExportFile.'
     }
 
-    $collectedPasswords
-    | ForEach-Object {
-        $result = Test-Password -Entry $_
+    $totalCount = $collectedPasswords.Count
+    $useProgress = $showProgress -and $totalCount -gt 1
+    for ($i = 0; $i -lt $totalCount; $i++) {
+        $entry = $collectedPasswords[$i]
+        if ($useProgress) {
+            $processed = $i + 1
+            $percent = [int](($processed / $totalCount) * 100)
+            $status = "Processed $processed of $totalCount"
+            Write-Progress -Activity 'Checking passwords against HIBP' -Status $status -PercentComplete $percent
+        }
+
+        $result = Test-Password -Entry $entry
         if ($result) {
             $null = $results.Add($result)
             $result
         }
+    }
+
+    if ($useProgress) {
+        Write-Progress -Activity 'Checking passwords against HIBP' -Completed -Status 'Completed'
     }
 
     $pwned = $results | Where-Object { $_.IsPwned }

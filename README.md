@@ -109,6 +109,7 @@ After the individual results, the script automatically prints a "Summary of comp
 - For the strongest privacy, keep `-DisablePadding` off (default). This instructs the API to return additional fake suffixes so observers cannot infer the true hit rate.
 - Avoid storing sensitive passwords in plain text files. Prefer secure prompts or pipeline inputs that you immediately discard afterward.
 - When scripting bulk checks, consider splitting lists and respecting rate limits to avoid 429 responses.
+- Supplying `-InputFile` or `-BrowserExportFile` automatically shows a progress bar so long runs don’t scroll out of view.
 
 ### Browser export tips
 
