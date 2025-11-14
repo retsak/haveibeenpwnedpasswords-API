@@ -53,7 +53,7 @@ pwsh ./Check-HIBPPassword.ps1 -BrowserExportFile ./edge-passwords.csv
     pwsh ./Check-HIBPPassword.ps1 -BrowserExportFile ./edge-passwords.csv
     ```
 
-3. The script detects both comma- and semicolon-delimited exports, looks for the `password`/`password_value` column, and queues every non-empty entry.
+3. The script detects both comma- and semicolon-delimited exports, captures the `name`, `url`, `username`, and optional `note` columns, and queues every non-empty password.
 4. You can pass multiple exports at once:
 
     ```powershell
@@ -69,7 +69,7 @@ pwsh ./Check-HIBPPassword.ps1 -BrowserExportFile ./edge-passwords.csv
 | `-Password` | `string[]` | One or more plaintext passwords. Supports pipeline input. |
 | `-SecurePassword` | `SecureString[]` | Secure strings (from `Read-Host -AsSecureString` or credentials). |
 | `-InputFile` | `string` | Path to a UTF-8/ANSI text file (one password per line). |
-| `-BrowserExportFile` | `string[]` | One or more CSV files exported from Edge/Chrome. Passwords are read from the `password` column. |
+| `-BrowserExportFile` | `string[]` | One or more CSV files exported from Edge/Chrome. Passwords plus `name`/`url`/`username`/`note` metadata are imported automatically. |
 | `-Prompt` | `switch` | Prompt interactively for a password (entered as secure string). |
 | `-DisablePadding` | `switch` | Remove the `Add-Padding: true` header if you prefer shorter responses. |
 | `-ThrottleMilliseconds` | `int` | Delay between unique prefix lookups (default 1600 ms per HIBP guidance). |
@@ -86,6 +86,10 @@ Each password produces an object with these properties:
 | `Sha1Hash`        | The full uppercase SHA-1 hash of the password.                       |
 | `IsPwned`         | `True` when the password was found in the HIBP dataset.              |
 | `PwnedCount`      | Number of times the password appeared in known breaches.            |
+| `SiteName`        | Name of the credential entry (from Edge/Chrome exports).             |
+| `SiteUrl`         | URL captured in the browser export, when available.                  |
+| `Username`        | Username or email stored alongside the password (exports only).      |
+| `Note`            | Any note/comment column provided by the browser export.              |
 
 You can further process the output, for example:
 

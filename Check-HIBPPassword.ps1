@@ -73,19 +73,31 @@ if (-not ([Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProto
 $hibpEndpoint = 'https://api.pwnedpasswords.com/range/'
 $userAgent = 'HIBPPasswordChecker/1.0 (+https://haveibeenpwned.com/API/v3)'
 $prefixCache = @{}
-$collectedPasswords = [System.Collections.Generic.List[string]]::new()
+$collectedPasswords = [System.Collections.Generic.List[psobject]]::new()
 $sha1 = [System.Security.Cryptography.SHA1]::Create()
 
 function Add-Password {
     param(
-        [string]$Candidate
+        [Parameter(Mandatory = $true)][string]$Candidate,
+        [string]$Name,
+        [string]$Url,
+        [string]$Username,
+        [string]$Note
     )
 
     if ([string]::IsNullOrWhiteSpace($Candidate)) {
         return
     }
 
-    $null = $collectedPasswords.Add($Candidate)
+    $entry = [pscustomobject]@{
+        Password = $Candidate
+        Name     = $Name
+        Url      = $Url
+        Username = $Username
+        Note     = $Note
+    }
+
+    $null = $collectedPasswords.Add($entry)
 }
 
 function Get-CsvDelimiterFromHeaderLine {
@@ -105,21 +117,27 @@ function Get-CsvDelimiterFromHeaderLine {
     return ','
 }
 
-function Get-BrowserPasswordColumnName {
-    param([Parameter(Mandatory = $true)][psobject]$Row)
+function Get-BrowserFieldValue {
+    param(
+        [Parameter(Mandatory = $true)][psobject]$Row,
+        [string[]]$PreferredNames,
+        [string]$ContainsPattern
+    )
 
-    $preferred = @('password', 'password_value')
-    foreach ($candidate in $preferred) {
-        foreach ($property in $Row.PSObject.Properties) {
-            if ($property.Name -eq $candidate) {
-                return $property.Name
+    if ($PreferredNames) {
+        foreach ($candidate in $PreferredNames) {
+            $property = $Row.PSObject.Properties | Where-Object { $_.Name -ieq $candidate } | Select-Object -First 1
+            if ($property) {
+                return $property.Value
             }
         }
     }
 
-    $fallback = $Row.PSObject.Properties | Where-Object { $_.Name -match 'password' } | Select-Object -First 1
-    if ($fallback) {
-        return $fallback.Name
+    if ($ContainsPattern) {
+        $property = $Row.PSObject.Properties | Where-Object { $_.Name -match $ContainsPattern } | Select-Object -First 1
+        if ($property) {
+            return $property.Value
+        }
     }
 
     return $null
@@ -138,17 +156,17 @@ function Import-BrowserExportPasswords {
     $rows = Import-Csv -Path $Path -Delimiter $delimiter -Encoding UTF8
 
     foreach ($row in $rows) {
-        $passwordColumn = Get-BrowserPasswordColumnName -Row $row
-        if (-not $passwordColumn) {
-            continue
-        }
-
-        $passwordValue = $row.$passwordColumn
+        $passwordValue = Get-BrowserFieldValue -Row $row -PreferredNames @('password', 'password_value') -ContainsPattern 'password'
         if ([string]::IsNullOrWhiteSpace($passwordValue)) {
             continue
         }
 
-        Add-Password -Candidate $passwordValue
+        $nameValue = Get-BrowserFieldValue -Row $row -PreferredNames @('name', 'site', 'title') -ContainsPattern 'name'
+        $urlValue = Get-BrowserFieldValue -Row $row -PreferredNames @('url', 'origin', 'link', 'website') -ContainsPattern 'url'
+        $usernameValue = Get-BrowserFieldValue -Row $row -PreferredNames @('username', 'user', 'login', 'email') -ContainsPattern 'user'
+        $noteValue = Get-BrowserFieldValue -Row $row -PreferredNames @('note', 'notes', 'comment', 'description') -ContainsPattern 'note'
+
+        Add-Password -Candidate $passwordValue -Name $nameValue -Url $urlValue -Username $usernameValue -Note $noteValue
     }
 }
 
@@ -243,9 +261,14 @@ function Invoke-HibpRangeRequest {
 }
 
 function Test-Password {
-    param([Parameter(Mandatory = $true)][string]$PlainText)
+    param([Parameter(Mandatory = $true)][psobject]$Entry)
 
-    $hash = Get-Sha1Hash -Value $PlainText
+    $plainText = $Entry.Password
+    if ([string]::IsNullOrEmpty($plainText)) {
+        return
+    }
+
+    $hash = Get-Sha1Hash -Value $plainText
     $prefix = $hash.Substring(0, 5)
     $suffix = $hash.Substring(5)
 
@@ -261,11 +284,15 @@ function Test-Password {
     }
 
     [pscustomobject]@{
-        PasswordPreview = Get-PasswordPreview -Text $PlainText
-        PlainText       = if ($IncludePlainText.IsPresent) { $PlainText } else { $null }
+        PasswordPreview = Get-PasswordPreview -Text $plainText
+        PlainText       = if ($IncludePlainText.IsPresent) { $plainText } else { $null }
         Sha1Hash        = $hash
         IsPwned         = $count -gt 0
         PwnedCount      = $count
+        SiteName        = $Entry.Name
+        SiteUrl         = $Entry.Url
+        Username        = $Entry.Username
+        Note            = $Entry.Note
     }
 }
 
@@ -316,7 +343,7 @@ try {
     }
 
     $collectedPasswords
-    | ForEach-Object { Test-Password -PlainText $_ }
+    | ForEach-Object { Test-Password -Entry $_ }
 }
 finally {
     if ($sha1) {
