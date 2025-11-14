@@ -6,9 +6,9 @@
 
 ## 1. Executive Summary
 
-The `Check-HIBPPassword.ps1` script provides a local interface to the Have I Been Pwned (HIBP) v3 "Pwned Passwords" range API using the recommended k-anonymity model. The script enforces TLS 1.2, sets a descriptive User-Agent header, throttles requests to respect the service guidance, and optionally enables response padding. These controls align with HIBP best practices and prevent the password material from being transmitted in plaintext.
+The `Check-HIBPPassword.ps1` script provides a local interface to the Have I Been Pwned (HIBP) v3 "Pwned Passwords" range API using the recommended k-anonymity model. The script enforces TLS 1.2, sets a descriptive User-Agent header, throttles requests to respect the service guidance, optionally enables response padding, and now surfaces progress/status plus end-of-run summaries and runtime metrics. These controls align with HIBP best practices and prevent the password material from being transmitted in plaintext.
 
-The primary security considerations relate to how sensitive data is handled on the client side rather than to the HIBP workflow itself. Plaintext passwords and derived SHA-1 hashes are retained in memory for the duration of a run, SecureStrings are converted to managed strings, and final output can expose data if the terminal buffer or downstream logs are captured. These risks can be reduced with moderate code updates and clearer user guidance.
+The primary security considerations continue to relate to how sensitive data is handled on the client side rather than to the HIBP workflow itself. Plaintext passwords and derived SHA-1 hashes are retained in memory for the duration of a run, SecureStrings are converted to managed strings, and the new summary table can expose password previews or plaintext across multiple entries. These risks can be reduced with moderate code updates and clearer user guidance.
 
 ## 2. Scope and Methodology
 
@@ -20,7 +20,8 @@ The primary security considerations relate to how sensitive data is handled on t
 1. **K-Anonymity implementation:** Only the first five characters of the SHA-1 hash are transmitted, ensuring that full password hashes never leave the host.
 2. **Transport security:** TLS 1.2 enforcement and use of `Invoke-RestMethod` over HTTPS maintain confidentiality in transit.
 3. **Service compliance:** Custom `User-Agent` and configurable throttling align with HIBP acceptable-use guidance. Optional padding improves privacy variance resistance.
-4. **Input flexibility with safeguards:** Plaintext parameters, pipeline input, secure prompts, and browser CSV imports provide multiple user workflows without requiring the password to traverse the network in clear text.
+4. **Operational transparency:** Progress bars, structured per-entry output, and end-of-run summaries/runtimes make long-running jobs observable without compromising the upstream privacy model.
+5. **Input flexibility with safeguards:** Plaintext parameters, pipeline input, secure prompts, and browser CSV imports provide multiple user workflows without requiring the password to traverse the network in clear text.
 
 ## 4. Observations & Risks
 
@@ -28,9 +29,10 @@ The primary security considerations relate to how sensitive data is handled on t
 | --- | --- | --- | --- |
 | F-01 | Sensitive data in memory | Passwords are stored as immutable .NET strings (`Password` property) for the duration of the session. Plaintext and SHA-1 values remain in memory and may be paged to disk, appearing in crash dumps or memory captures. | Medium |
 | F-02 | SecureString conversion | SecureStrings are converted to managed strings for hashing, negating their protection. The conversion is necessary for hashing but should be scoped as tightly as possible. | Low/Medium |
-| F-03 | Output exposure | Default output includes SHA-1 hashes and masked previews. When `-IncludePlainText` is used, full passwords are emitted. Terminal logs, scrollback buffers, or transcripts may expose this information. | Medium |
+| F-03 | Output exposure | Default output includes SHA-1 hashes and masked previews. When `-IncludePlainText` is used, full passwords are emitted. The new summary table aggregates those previews/plaintext values, increasing the likelihood of exposure if the console buffer or logs are retained. | Medium |
 | F-04 | CSV/paste injection | Browser-export metadata (site name, username, url) is reflected in output. If exported to CSV or copied into spreadsheets, values starting with `=`, `+`, `-`, or `@` could trigger formula execution. | Low |
 | F-05 | Limited cleanup | Sensitive collections (`$collectedPasswords`, `$results`) are not cleared post-run, prolonging lifetime of secrets in memory. | Low |
+| F-06 | Progress/summary artifacts | Progress indicators and runtime summaries are benign, but `$results` retains the entire dataset (including previews/plaintext) for the duration of the run and until garbage-collected. This increases the blast radius if the host is compromised during or immediately after execution. | Low/Medium |
 
 ## 5. Recommendations
 
@@ -39,18 +41,20 @@ The primary security considerations relate to how sensitive data is handled on t
    - After hashing, overwrite or null the plaintext reference to shorten lifetime in managed memory.
    - Consider using `SecureString` native access (`System.Runtime.InteropServices.Marshal`) only within a `try/finally` and zero memory afterward.
 
-2. **Sensitive output controls (F-03):**
+2. **Sensitive output controls (F-03, F-06):**
    - Keep `-IncludePlainText` opt-in (already implemented); highlight in help text that enabling it may expose secrets to terminals/logs.
    - Introduce an `-IncludeSha1` switch so hashes are hidden by default, revealing them only when necessary for incident response.
+   - Allow the final summary table to hide previews/plaintext unless a dedicated switch (e.g., `-IncludeSummarySecrets`) is provided; consider replacing the console summary with a sanitized aggregate (counts per site) when the switch is absent.
    - Provide `-OutputPath` or `-AsJson` options that redact sensitive fields unless explicitly opted in.
 
 3. **CSV injection guard (F-04):**
    - When emitting data for export (or instructing users to export), prefix fields starting with `=`, `+`, `-`, or `@` with a single quote.
    - Document the risk in README and recommend pasting into safe editors first.
 
-4. **Memory cleanup (F-05):**
+4. **Memory cleanup (F-05, F-06):**
    - In the `finally` block, call `$collectedPasswords.Clear()` and `$results.Clear()` and set them to `$null` to reduce retention time.
    - Explicitly dispose of the SHA-1 instance (already present) and null temporary variables after use.
+   - After generating the summary, drop references to the `$results` list if it is no longer required.
 
 5. **User guidance:**
    - Expand the README "Notes" to warn against running the script with sensitive passwords on shared systems, recommend clearing terminal history, and encourage secure storage/deletion of browser export files.
