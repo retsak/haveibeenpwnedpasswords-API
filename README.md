@@ -100,7 +100,7 @@ pwsh ./Check-HIBPPassword.ps1 -InputFile ./passwords.txt |
     Format-Table -AutoSize
 ```
 
-After the individual results, the script automatically prints a "Summary of compromised entries" table (sorted by breach count) so you can review everything at once even if the console buffer scrolls.
+After the individual results, the script automatically prints a "Summary of compromised entries" table (sorted by breach count) that includes either the password preview or the full plaintext (when `-IncludePlainText` is supplied) so you can review everything at once, even if the console buffer scrolls. The script also displays the total runtime to help you gauge how long the batch took.
 
 ## Notes
 
@@ -110,6 +110,7 @@ After the individual results, the script automatically prints a "Summary of comp
 - Avoid storing sensitive passwords in plain text files. Prefer secure prompts or pipeline inputs that you immediately discard afterward.
 - When scripting bulk checks, consider splitting lists and respecting rate limits to avoid 429 responses.
 - Supplying `-InputFile` or `-BrowserExportFile` automatically shows a progress bar so long runs don’t scroll out of view.
+- At the end of every run you’ll see the total elapsed time, making it easy to compare batch durations across different inputs or throttling options.
 
 ### Browser export tips
 

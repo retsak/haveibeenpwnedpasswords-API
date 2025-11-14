@@ -64,6 +64,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+$stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
 # Ensure TLS 1.2 is enabled for the session
 if (-not ([Net.ServicePointManager]::SecurityProtocol.HasFlag([Net.SecurityProtocolType]::Tls12))) {
@@ -76,6 +77,7 @@ $prefixCache = @{}
 $collectedPasswords = [System.Collections.Generic.List[psobject]]::new()
 $results = [System.Collections.Generic.List[psobject]]::new()
 $sha1 = [System.Security.Cryptography.SHA1]::Create()
+$showProgress = $false
 $showProgress = $false
 
 function Add-Password {
@@ -374,15 +376,39 @@ try {
         Write-Host 'Summary of compromised entries:' -ForegroundColor Yellow
         $pwned
         | Sort-Object -Property PwnedCount -Descending
-        | Select-Object @{n='Count';e={$_.PwnedCount}}, @{n='Site';e={$_.SiteName}}, @{n='URL';e={$_.SiteUrl}}, @{n='Username';e={$_.Username}}, Sha1Hash
+        | Select-Object -Property @(
+            @{Name='Count';Expression={$_.PwnedCount}}
+            @{Name='Password';Expression={
+                if ($IncludePlainText.IsPresent -and $_.PlainText) {
+                    $_.PlainText
+                }
+                else {
+                    $_.PasswordPreview
+                }
+            }}
+            @{Name='Site';Expression={$_.SiteName}}
+            @{Name='URL';Expression={$_.SiteUrl}}
+            @{Name='Username';Expression={$_.Username}}
+            'Sha1Hash'
+        )
         | Format-Table -AutoSize
     }
     else {
         Write-Host 'No compromised passwords detected in this run.' -ForegroundColor Green
     }
+
+    if ($stopwatch) {
+        $stopwatch.Stop()
+        Write-Host ("Total runtime: {0}" -f $stopwatch.Elapsed.ToString('hh\:mm\:ss\.fff')) -ForegroundColor Cyan
+        $stopwatch = $null
+    }
 }
 finally {
     if ($sha1) {
         $sha1.Dispose()
+    }
+
+    if ($stopwatch) {
+        $stopwatch.Stop()
     }
 }
