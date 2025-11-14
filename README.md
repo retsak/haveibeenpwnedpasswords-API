@@ -112,6 +112,15 @@ After the individual results, the script automatically prints a "Summary of comp
 - Supplying `-InputFile` or `-BrowserExportFile` automatically shows a progress bar so long runs don’t scroll out of view.
 - At the end of every run you’ll see the total elapsed time, making it easy to compare batch durations across different inputs or throttling options.
 
+### How k-anonymity is implemented
+
+1. Every password or secure string stays local. The script converts each value to UTF-8 bytes and computes the uppercase SHA-1 hash entirely on your machine.
+2. Only the first five characters of that hash (the `prefix`) are sent to `https://api.pwnedpasswords.com/range/{prefix}`. This 20-bit prefix identifies a bucket of up to 1,048,576 possible suffixes, so HIBP never learns the exact password hash you queried.
+3. The API responds with all matching suffixes plus counts. The script compares the locally computed suffix to this list to determine whether the password is pwned.
+4. Response padding (`Add-Padding: true`) is enabled by default, ensuring every response contains roughly the same number of suffixes so attackers observing your network traffic cannot infer result density.
+
+This flow exactly matches the official HIBP k-anonymity guidance: full hashes and plaintexts never leave your machine, and only a short, non-unique prefix along with padded results is transmitted over the network.
+
 ### Browser export tips
 
 - **Edge**: `Settings` → `Profiles` → `Passwords` → `Saved passwords` menu (`…`) → `Export passwords`. Save the CSV and point `-BrowserExportFile` to it.
