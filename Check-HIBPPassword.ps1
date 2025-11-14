@@ -370,7 +370,7 @@ try {
         Write-Progress -Activity 'Checking passwords against HIBP' -Completed -Status 'Completed'
     }
 
-    $pwned = $results | Where-Object { $_.IsPwned }
+    $pwned = @($results | Where-Object { $_.IsPwned })
     if ($pwned.Count -gt 0) {
         ''
         Write-Host 'Summary of compromised entries:' -ForegroundColor Yellow

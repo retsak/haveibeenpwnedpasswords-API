@@ -44,6 +44,19 @@ pwsh ./Check-HIBPPassword.ps1 -InputFile ./passwords.txt -DisablePadding
 pwsh ./Check-HIBPPassword.ps1 -BrowserExportFile ./edge-passwords.csv
 ```
 
+## GUI helper (Windows only)
+
+If you prefer a point-and-click experience, run `pwsh ./Check-HIBPPassword.Gui.ps1` on Windows. The GUI wraps the same CLI script, so no functionality regresses:
+
+- Enter passwords manually (one per line), load a text file, or add multiple Edge/Chrome CSV exports.
+- Toggle `Include plaintext in results`, `Disable padding`, and adjust the throttle delay without typing switches.
+- Run checks in the background without freezing the window; results populate an in-app table that mirrors the CLI objects.
+- Export the grid to CSV in a single click.
+- Launch with `pwsh ./Check-HIBPPassword.Gui.ps1 -DebugLogging` to stream detailed status messages into the terminal while you click around—handy for troubleshooting input issues.
+- While the background check runs, the status bar now shows a live progress meter that mirrors the CLI progress records, so you always know how far through the queue you are.
+
+Because it depends on Windows Forms, the GUI currently targets Windows desktops. macOS/Linux users should keep using the CLI script directly.
+
 ### Using `-BrowserExportFile`
 
 1. Export passwords from Edge (`Settings` → `Profiles` → `Passwords` → `Saved passwords` menu `…` → `Export passwords`) or Chrome (`Settings` → `Autofill` → `Passwords` → `⋮` → `Export passwords`).
