@@ -100,6 +100,8 @@ pwsh ./Check-HIBPPassword.ps1 -InputFile ./passwords.txt |
     Format-Table -AutoSize
 ```
 
+After the individual results, the script automatically prints a "Summary of compromised entries" table (sorted by breach count) so you can review everything at once even if the console buffer scrolls.
+
 ## Notes
 
 - The Pwned Passwords API does not require an API key, but you **must** include a descriptive `User-Agent`. The script sets one automatically.
