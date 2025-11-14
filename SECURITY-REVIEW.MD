@@ -6,13 +6,13 @@
 
 ## 1. Executive Summary
 
-The `Check-HIBPPassword.ps1` script provides a local interface to the Have I Been Pwned (HIBP) v3 "Pwned Passwords" range API using the recommended k-anonymity model. The script enforces TLS 1.2, sets a descriptive User-Agent header, throttles requests to respect the service guidance, optionally enables response padding, and now surfaces progress/status plus end-of-run summaries and runtime metrics. These controls align with HIBP best practices and prevent the password material from being transmitted in plaintext.
+The `Check-HIBPPassword.ps1` script provides a local interface to the Have I Been Pwned (HIBP) v3 "Pwned Passwords" range API using the recommended k-anonymity model. The script enforces TLS 1.2, sets a descriptive User-Agent header, throttles requests to respect the service guidance, optionally enables response padding, and now surfaces progress/status plus end-of-run summaries and runtime metrics. Both Windows GUI shells (classic and the newly documented "hacker" dark mode) simply wrap this script, so their security posture is identical. These controls align with HIBP best practices and prevent the password material from being transmitted in plaintext.
 
 The primary security considerations continue to relate to how sensitive data is handled on the client side rather than to the HIBP workflow itself. Plaintext passwords and derived SHA-1 hashes are retained in memory for the duration of a run, SecureStrings are converted to managed strings, and the new summary table can expose password previews or plaintext across multiple entries. These risks can be reduced with moderate code updates and clearer user guidance.
 
 ## 2. Scope and Methodology
 
-- **Scope:** `Check-HIBPPassword.ps1` and its associated documentation (`README.md`). No external services beyond publicly documented HIBP APIs were assessed.
+- **Scope:** `Check-HIBPPassword.ps1`, the Windows Forms front-ends (`Check-HIBPPassword.Gui.ps1` and `Check-HIBPPassword.Gui.Hacker.ps1`), and the accompanying documentation (`README.md`). No external services beyond publicly documented HIBP APIs were assessed.
 - **Method:** Manual code review focusing on secret handling, API hygiene, and operational safeguards. No penetration testing or automated tooling was executed.
 
 ## 3. Positive Findings
@@ -22,6 +22,7 @@ The primary security considerations continue to relate to how sensitive data is 
 3. **Service compliance:** Custom `User-Agent` and configurable throttling align with HIBP acceptable-use guidance. Optional padding improves privacy variance resistance.
 4. **Operational transparency:** Progress bars, structured per-entry output, and end-of-run summaries/runtimes make long-running jobs observable without compromising the upstream privacy model.
 5. **Input flexibility with safeguards:** Plaintext parameters, pipeline input, secure prompts, and browser CSV imports provide multiple user workflows without requiring the password to traverse the network in clear text.
+6. **GUI parity:** Both Windows GUI launchers—including the newly documented "hacker" dark mode shell—delegate the heavy lifting to the same CLI script, keeping all input validation, throttling, and network hygiene centralized in one code path.
 
 ## 4. Observations & Risks
 
@@ -57,7 +58,7 @@ The primary security considerations continue to relate to how sensitive data is 
    - After generating the summary, drop references to the `$results` list if it is no longer required.
 
 5. **User guidance:**
-   - Expand the README "Notes" to warn against running the script with sensitive passwords on shared systems, recommend clearing terminal history, and encourage secure storage/deletion of browser export files.
+   - Expand the README "Notes" to warn against running the script with sensitive passwords on shared systems, recommend clearing terminal history, and encourage secure storage/deletion of browser export files. (The README now includes details about both GUI flavors, so adding the security caveats there will reach all interface users.)
    - Document the trade-offs of SecureString conversion so operators understand residual risks.
 
 ## 6. Suggested Next Steps
@@ -74,3 +75,7 @@ The primary security considerations continue to relate to how sensitive data is 
 The script adheres to HIBP’s API guidance and provides a safer alternative to checking passwords directly in browsers. The remaining risks are local to the host environment and can be mitigated with modest engineering effort and improved documentation. Implementing the recommendations above will reduce the likelihood of sensitive data persisting in memory or being exposed via output artifacts.
 
 Please reach out to Security Engineering if guidance is needed when implementing the proposed changes or if additional validation (e.g., memory inspection, fuzzing) is desired.
+
+## 8. Recent Updates
+
+- **2025-11-14:** README now documents the parody "hacker" GUI (`Check-HIBPPassword.Gui.Hacker.ps1`). Security review confirmed this shell is a stylistic wrapper around the existing Windows Forms UI and does not introduce new code paths for password handling or HIBP calls. All recommendations above continue to apply unchanged.
