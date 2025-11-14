@@ -377,7 +377,7 @@ try {
         $pwned
         | Sort-Object -Property PwnedCount -Descending
         | Select-Object -Property @(
-            @{Name='Count';Expression={$_.PwnedCount}}
+            @{Name='Count';Expression={$_.PwnedCount}},
             @{Name='Password';Expression={
                 if ($IncludePlainText.IsPresent -and $_.PlainText) {
                     $_.PlainText
@@ -385,10 +385,10 @@ try {
                 else {
                     $_.PasswordPreview
                 }
-            }}
-            @{Name='Site';Expression={$_.SiteName}}
-            @{Name='URL';Expression={$_.SiteUrl}}
-            @{Name='Username';Expression={$_.Username}}
+            }},
+            @{Name='Site';Expression={$_.SiteName}},
+            @{Name='URL';Expression={$_.SiteUrl}},
+            @{Name='Username';Expression={$_.Username}},
             'Sha1Hash'
         )
         | Format-Table -AutoSize
