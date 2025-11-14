@@ -57,6 +57,23 @@ If you prefer a point-and-click experience, run `pwsh ./Check-HIBPPassword.Gui.p
 
 Because it depends on Windows Forms, the GUI currently targets Windows desktops. macOS/Linux users should keep using the CLI script directly.
 
+### Parody hacker GUI (dark mode)
+
+Need something more dramatic than a standard WinForms window? Launch the neon "dark mode" build with:
+
+```powershell
+pwsh ./Check-HIBPPassword.Gui.Hacker.ps1
+```
+
+This script exposes the exact same functionality as the main GUI but reskins everything with monospaced fonts, neon accents, and tongue-in-cheek hacker copy. Highlights:
+
+- All inputs (manual passwords, text files, Edge/Chrome CSV exports) and toggles (`Include plaintext`, `Disable padding`, throttle control) match the classic GUI, so workflows stay identical.
+- Status text, progress updates, and result summaries use playful "ops" jargon while still reporting the same structured data grid you can export to CSV.
+- Tooltips explain the themed button labels so you always know what "Add CSV loot" or "Initiate pwn scan" will actually do.
+- The `-DebugLogging` switch is supported here too, letting you stream detailed log messages to the terminal while you click around the themed UI.
+
+Use whichever interface fits your vibe—the hacker version is purely a dark-mode parody layer on top of the same secure CLI engine.
+
 ### Using `-BrowserExportFile`
 
 1. Export passwords from Edge (`Settings` → `Profiles` → `Passwords` → `Saved passwords` menu `…` → `Export passwords`) or Chrome (`Settings` → `Autofill` → `Passwords` → `⋮` → `Export passwords`).
