@@ -19,6 +19,10 @@
 .EXAMPLE
     # Read passwords from a file (one per line) and disable padding responses
     pwsh ./Check-HIBPPassword.ps1 -InputFile ./passwords.txt -DisablePadding
+
+.EXAMPLE
+    # Import passwords saved from Chrome or Edge (CSV export)
+    pwsh ./Check-HIBPPassword.ps1 -BrowserExportFile ./chrome-passwords.csv
 #>
 
 [CmdletBinding()]
@@ -35,6 +39,10 @@ param(
     [Parameter()]
     [string]
     $InputFile,
+
+    [Parameter()]
+    [string[]]
+    $BrowserExportFile,
 
     [Parameter()]
     [switch]
@@ -78,6 +86,70 @@ function Add-Password {
     }
 
     $null = $collectedPasswords.Add($Candidate)
+}
+
+function Get-CsvDelimiterFromHeaderLine {
+    param([string]$HeaderLine)
+
+    if ([string]::IsNullOrWhiteSpace($HeaderLine)) {
+        return ','
+    }
+
+    $commaCount = ([regex]::Matches($HeaderLine, ',')).Count
+    $semicolonCount = ([regex]::Matches($HeaderLine, ';')).Count
+
+    if ($semicolonCount -gt $commaCount) {
+        return ';'
+    }
+
+    return ','
+}
+
+function Get-BrowserPasswordColumnName {
+    param([Parameter(Mandatory = $true)][psobject]$Row)
+
+    $preferred = @('password', 'password_value')
+    foreach ($candidate in $preferred) {
+        foreach ($property in $Row.PSObject.Properties) {
+            if ($property.Name -eq $candidate) {
+                return $property.Name
+            }
+        }
+    }
+
+    $fallback = $Row.PSObject.Properties | Where-Object { $_.Name -match 'password' } | Select-Object -First 1
+    if ($fallback) {
+        return $fallback.Name
+    }
+
+    return $null
+}
+
+function Import-BrowserExportPasswords {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path -Path $Path -PathType Leaf)) {
+        throw "Browser export file '$Path' does not exist."
+    }
+
+    $headerLine = Get-Content -Path $Path -TotalCount 10 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1
+    $delimiter = Get-CsvDelimiterFromHeaderLine -HeaderLine $headerLine
+
+    $rows = Import-Csv -Path $Path -Delimiter $delimiter -Encoding UTF8
+
+    foreach ($row in $rows) {
+        $passwordColumn = Get-BrowserPasswordColumnName -Row $row
+        if (-not $passwordColumn) {
+            continue
+        }
+
+        $passwordValue = $row.$passwordColumn
+        if ([string]::IsNullOrWhiteSpace($passwordValue)) {
+            continue
+        }
+
+        Add-Password -Candidate $passwordValue
+    }
 }
 
 function ConvertFrom-SecureStringPlainText {
@@ -233,8 +305,14 @@ try {
         Get-Content -Path $InputFile | ForEach-Object { Add-Password -Candidate $_ }
     }
 
+    if ($BrowserExportFile) {
+        foreach ($exportPath in $BrowserExportFile) {
+            Import-BrowserExportPasswords -Path $exportPath
+        }
+    }
+
     if ($collectedPasswords.Count -eq 0) {
-        throw 'No passwords supplied. Provide -Password, pipeline input, -SecurePassword, -Prompt, or -InputFile.'
+        throw 'No passwords supplied. Provide -Password, pipeline input, -SecurePassword, -Prompt, -InputFile, or -BrowserExportFile.'
     }
 
     $collectedPasswords

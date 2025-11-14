@@ -5,6 +5,7 @@ A standalone PowerShell script that checks one or more passwords against the [Ha
 ## Features
 
 - Accepts passwords via parameters, pipeline input, secure strings, interactive prompts, or text files.
+- Imports CSV exports from Microsoft Edge and Google Chrome password managers.
 - Uses SHA-1 hashing locally and queries only the hash prefix.
 - Optional response padding (enabled by default) and configurable throttling to respect HIBP rate limits.
 - Outputs structured objects you can filter or export in PowerShell.
@@ -38,7 +39,28 @@ pwsh ./Check-HIBPPassword.ps1 -Password Hunter2 -ThrottleMilliseconds 0
 
 # Disable response padding and read from a file
 pwsh ./Check-HIBPPassword.ps1 -InputFile ./passwords.txt -DisablePadding
+
+# Import a Chrome or Edge export (CSV containing name/url/username/password)
+pwsh ./Check-HIBPPassword.ps1 -BrowserExportFile ./edge-passwords.csv
 ```
+
+### Using `-BrowserExportFile`
+
+1. Export passwords from Edge (`Settings` → `Profiles` → `Passwords` → `Saved passwords` menu `…` → `Export passwords`) or Chrome (`Settings` → `Autofill` → `Passwords` → `⋮` → `Export passwords`).
+2. Move the downloaded CSV to a secure working folder and run:
+
+    ```powershell
+    pwsh ./Check-HIBPPassword.ps1 -BrowserExportFile ./edge-passwords.csv
+    ```
+
+3. The script detects both comma- and semicolon-delimited exports, looks for the `password`/`password_value` column, and queues every non-empty entry.
+4. You can pass multiple exports at once:
+
+    ```powershell
+    pwsh ./Check-HIBPPassword.ps1 -BrowserExportFile @('~/Downloads/chrome.csv','~/Downloads/edge.csv')
+    ```
+
+5. Delete the CSVs immediately afterward—they contain plaintext secrets.
 
 ### Parameters
 
@@ -47,6 +69,7 @@ pwsh ./Check-HIBPPassword.ps1 -InputFile ./passwords.txt -DisablePadding
 | `-Password` | `string[]` | One or more plaintext passwords. Supports pipeline input. |
 | `-SecurePassword` | `SecureString[]` | Secure strings (from `Read-Host -AsSecureString` or credentials). |
 | `-InputFile` | `string` | Path to a UTF-8/ANSI text file (one password per line). |
+| `-BrowserExportFile` | `string[]` | One or more CSV files exported from Edge/Chrome. Passwords are read from the `password` column. |
 | `-Prompt` | `switch` | Prompt interactively for a password (entered as secure string). |
 | `-DisablePadding` | `switch` | Remove the `Add-Padding: true` header if you prefer shorter responses. |
 | `-ThrottleMilliseconds` | `int` | Delay between unique prefix lookups (default 1600 ms per HIBP guidance). |
@@ -80,6 +103,12 @@ pwsh ./Check-HIBPPassword.ps1 -InputFile ./passwords.txt |
 - For the strongest privacy, keep `-DisablePadding` off (default). This instructs the API to return additional fake suffixes so observers cannot infer the true hit rate.
 - Avoid storing sensitive passwords in plain text files. Prefer secure prompts or pipeline inputs that you immediately discard afterward.
 - When scripting bulk checks, consider splitting lists and respecting rate limits to avoid 429 responses.
+
+### Browser export tips
+
+- **Edge**: `Settings` → `Profiles` → `Passwords` → `Saved passwords` menu (`…`) → `Export passwords`. Save the CSV and point `-BrowserExportFile` to it.
+- **Chrome**: `Settings` → `Autofill` → `Passwords` → `Saved Passwords` menu (`⋮`) → `Export passwords`. Chrome saves the same CSV layout as Edge, so the script parses both.
+- The CSV stays on disk in plain text; delete it as soon as you're done to avoid leaving a sensitive artifact lying around.
 
 ## HIBP API v3 specifics
 
